@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
@@ -12,20 +12,11 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Build arguments for environment variables
-ARG VITE_API_BASE_URL
-ARG VITE_APP_ENV=production
-ARG VITE_AUTH_TOKEN_STORAGE_KEY=aki_token
-
-# Set environment variables
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_APP_ENV=$VITE_APP_ENV
-ENV VITE_AUTH_TOKEN_STORAGE_KEY=$VITE_AUTH_TOKEN_STORAGE_KEY
+# Only use ARG/ENV for non-sensitive configuration. Secrets/tokens must be set in Azure App Service, not in this Dockerfile.
 
 # Build the application
 RUN npm run build
 
-# Production stage
 FROM nginx:alpine
 
 # Copy custom nginx config
