@@ -38,6 +38,7 @@ export interface ReportFilter {
 
 let eventsStore: EventItem[] = [];
 let attendanceStore: Attendance[] = [];
+let classesStore: any[] = [];
 
 export const seedMocks = (opts?: { events?: EventItem[]; attendances?: Attendance[] }) => {
   eventsStore = opts?.events ? [...opts.events] : [
@@ -75,6 +76,53 @@ export const seedMocks = (opts?: { events?: EventItem[]; attendances?: Attendanc
       studentName: 'Aluno 2',
       status: 'absent',
       recordedAt: new Date().toISOString(),
+    },
+  ];
+
+  // seed some classes with students and devices
+  classesStore = [
+    {
+      id: 'class-1',
+      name: 'Turma U BES - Manhã',
+      code: 'UBES-M1',
+      institutionId: 'inst-1',
+      teacherId: 'teacher-1',
+      students: [
+        {
+          id: 'stu-1',
+          name: 'Aluno 1',
+          email: 'aluno1@example.com',
+          document: '123.456.789-00',
+          device: {
+            id: genId('dev-'),
+            deviceId: 'AA:BB:CC:DD:EE:01',
+            userId: 'stu-1',
+            status: 'active',
+            lastSeen: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            updatedAt: undefined,
+          },
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 'stu-2',
+          name: 'Aluno 2',
+          email: 'aluno2@example.com',
+          document: '987.654.321-00',
+          device: undefined,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'class-2',
+      name: 'Matemática - Vespertino',
+      code: 'MAT-V',
+      institutionId: 'inst-1',
+      teacherId: 'teacher-1',
+      students: [],
+      createdAt: new Date().toISOString(),
     },
   ];
 };
@@ -181,6 +229,32 @@ export const mockAttendanceApi = {
   },
 };
 
+export const mockClassesApi = {
+  getMyClasses: async () => {
+    await wait();
+    return Promise.resolve([...classesStore]);
+  },
+
+  getClassById: async (id: ID) => {
+    await wait();
+    const cls = classesStore.find((c) => c.id === id);
+    if (!cls) return Promise.reject({ status: 404, message: 'Class not found' });
+    return Promise.resolve(cls);
+  },
+
+  resetStudentDevice: async (studentId: ID) => {
+    await wait();
+    for (const cls of classesStore) {
+      const s = cls.students?.find((st: any) => st.id === studentId);
+      if (s) {
+        s.device = undefined;
+        return Promise.resolve({ success: true });
+      }
+    }
+    return Promise.reject({ status: 404, message: 'Student not found' });
+  },
+};
+
 export const mockReportsApi = {
   attendanceReport: async (filter?: ReportFilter) => {
     await wait();
@@ -231,5 +305,6 @@ export default {
   resetMocks,
   mockEventsApi,
   mockAttendanceApi,
+  mockClassesApi,
   mockReportsApi,
 };

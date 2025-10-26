@@ -158,26 +158,21 @@ const ClassDetailPage = () => {
                       <TableCell>{student.document}</TableCell>
                       <TableCell>
                         {student.device ? (
-                          <div className="flex items-center gap-2">
-                            <Smartphone className="h-4 w-4 text-primary" />
-                            <span className="text-sm text-primary font-medium">
-                              {student.device.status}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            No device
-                          </span>
-                        )}
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                <Smartphone className="h-4 w-4 text-primary" />
+                                <span className="text-sm text-primary font-medium">{student.device.status}</span>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">MAC: <span className="font-mono">{student.device.deviceId}</span></div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No device</span>
+                          )}
                       </TableCell>
                       <TableCell className="text-right">
                         {student.device && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setResetStudentId(student.id)}
-                          >
-                            Reset Device
+                          <Button variant="outline" size="sm" onClick={() => setResetStudentId(student.id)}>
+                            Remover dispositivo
                           </Button>
                         )}
                       </TableCell>
@@ -192,28 +187,24 @@ const ClassDetailPage = () => {
 
       {/* Reset Device Dialog */}
       <AlertDialog open={!!resetStudentId} onOpenChange={() => setResetStudentId(null)}>
-        <AlertDialogContent>
+          <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset Student Device</AlertDialogTitle>
+            <AlertDialogTitle>Remover dispositivo</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove the device association for this student. They will need to
-              register a new device to mark attendance. This action cannot be undone.
+              Isso removerá a associação do dispositivo para este aluno. Ele precisará cadastrar
+              um novo dispositivo para marcar presença. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isResetting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleResetDevice}
-              disabled={isResetting}
-              className="gradient-primary"
-            >
+            <AlertDialogCancel disabled={isResetting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetDevice} disabled={isResetting} className="gradient-primary">
               {isResetting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Resetting...
+                  Removendo...
                 </>
               ) : (
-                'Reset Device'
+                'Remover dispositivo'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
