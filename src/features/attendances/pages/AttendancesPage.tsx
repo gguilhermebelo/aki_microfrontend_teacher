@@ -3,6 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ClipboardCheck, Search, Loader2 } from 'lucide-react';
+import { mockAttendanceApi } from '@/mocks/apiMocks';
+
+const USE_MOCK = (import.meta as any).env?.VITE_USE_MOCK_API === 'true';
 import {
   Select,
   SelectContent,
@@ -15,7 +18,7 @@ const AttendancesPage = () => {
   const [isLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
-  const attendances = [
+  const [attendances, setAttendances] = useState([
     {
       id: '1',
       studentName: 'John Doe',
@@ -40,7 +43,20 @@ const AttendancesPage = () => {
       timestamp: '2025-10-25T14:00:00',
       method: 'automatic' as const,
     },
-  ];
+  ]);
+
+  const deleteAttendance = async (id: string) => {
+    const ok = window.confirm('Excluir esta chamada?');
+    if (!ok) return;
+    setAttendances((s) => s.filter((a) => a.id !== id));
+    if (USE_MOCK) {
+      try {
+        await mockAttendanceApi.remove(id);
+      } catch (err) {
+        console.error('Failed to delete attendance (mock):', err);
+      }
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -145,8 +161,8 @@ const AttendancesPage = () => {
                   >
                     {attendance.status}
                   </span>
-                  <Button variant="outline" size="sm">
-                    Edit
+                  <Button variant="outline" size="sm" onClick={() => deleteAttendance(attendance.id)}>
+                    Delete
                   </Button>
                 </div>
               </div>
