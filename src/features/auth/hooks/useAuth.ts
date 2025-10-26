@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { Teacher } from '@/shared/types';
 import { authApi } from '../api/authApi';
 import { authService } from '@/services/auth/authService';
+import { mockAuthApi, mockAuthService } from '@/mocks/authMocks';
+
+// Toggle mocks by setting VITE_USE_MOCK_AUTH=true in your .env (Vite)
+const USE_MOCKS = (import.meta as any).env?.VITE_USE_MOCK_AUTH === 'true';
+
+const api = USE_MOCKS ? mockAuthApi : authApi;
+const service = USE_MOCKS ? mockAuthService : authService;
 
 interface AuthState {
   teacher: Teacher | null;
@@ -16,14 +23,14 @@ interface AuthState {
 
 export const useAuth = create<AuthState>((set) => ({
   teacher: null,
-  isAuthenticated: authService.isAuthenticated(),
+  isAuthenticated: service.isAuthenticated(),
   isLoading: false,
   error: null,
 
   login: async (email: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authApi.login({ email, password });
+      const response = await api.login({ email, password });
       set({ teacher: response.teacher, isAuthenticated: true, isLoading: false });
     } catch (error: any) {
       set({ 
@@ -36,23 +43,23 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await authApi.logout();
+  await api.logout();
     set({ teacher: null, isAuthenticated: false });
   },
 
   loadUser: async () => {
-    if (!authService.isAuthenticated()) {
+    if (!service.isAuthenticated()) {
       set({ isAuthenticated: false, teacher: null });
       return;
     }
     
     set({ isLoading: true });
     try {
-      const teacher = await authApi.getMe();
+      const teacher = await api.getMe();
       set({ teacher, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isAuthenticated: false, teacher: null, isLoading: false });
-      authService.removeToken();
+      service.removeToken();
     }
   },
 
