@@ -2,13 +2,9 @@ import { create } from 'zustand';
 import { Teacher } from '@/shared/types';
 import { authApi } from '../api/authApi';
 import { authService } from '@/services/auth/authService';
-import { mockAuthApi, mockAuthService } from '@/mocks/authMocks';
 
-// Toggle mocks by setting VITE_USE_MOCK_AUTH=true in your .env (Vite)
-const USE_MOCKS = (import.meta as any).env?.VITE_USE_MOCK_AUTH === 'true';
-
-const api = USE_MOCKS ? mockAuthApi : authApi;
-const service = USE_MOCKS ? mockAuthService : authService;
+const api = authApi;
+const service = authService;
 
 interface AuthState {
   teacher: Teacher | null;
@@ -23,7 +19,7 @@ interface AuthState {
 
 export const useAuth = create<AuthState>((set) => ({
   teacher: null,
-  isAuthenticated: service.isAuthenticated(),
+  isAuthenticated: false,
   isLoading: false,
   error: null,
 
@@ -43,23 +39,18 @@ export const useAuth = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-  await api.logout();
+    await api.logout();
     set({ teacher: null, isAuthenticated: false });
   },
 
   loadUser: async () => {
-    if (!service.isAuthenticated()) {
-      set({ isAuthenticated: false, teacher: null });
-      return;
-    }
-    
+    // For MVP, skip token check and always require login
     set({ isLoading: true });
     try {
       const teacher = await api.getMe();
       set({ teacher, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isAuthenticated: false, teacher: null, isLoading: false });
-      service.removeToken();
     }
   },
 

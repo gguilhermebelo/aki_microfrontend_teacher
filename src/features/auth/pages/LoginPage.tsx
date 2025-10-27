@@ -37,12 +37,12 @@ const LoginPage = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error);
-      clearError();
-    }
-  }, [error, clearError]);
+    useEffect(() => {
+      if (error) {
+        toast.error(error || 'Login failed');
+        clearError();
+      }
+    }, [error, clearError]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsSubmitting(true);
@@ -113,6 +113,14 @@ const LoginPage = () => {
                 'Sign In'
               )}
             </Button>
+            <div className="text-center mt-2">
+              <a
+                href="/recover-password"
+                className="text-sm text-primary underline hover:text-primary/80"
+              >
+                Forgot password?
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>
