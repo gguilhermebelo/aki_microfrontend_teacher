@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./features/auth/pages/LoginPage";
+import RecoverPasswordPage from "./features/auth/pages/RecoverPasswordPage";
 import DashboardPage from "./features/dashboard/pages/DashboardPage";
 import ClassesPage from "./features/classes/pages/ClassesPage";
 import ClassDetailPage from "./features/classes/pages/ClassDetailPage";
@@ -23,6 +24,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/recover-password" element={<RecoverPasswordPage />} />
           <Route
             path="/dashboard"
             element={

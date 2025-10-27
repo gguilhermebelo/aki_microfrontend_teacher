@@ -7,15 +7,33 @@ interface LoginRequest {
   password: string;
 }
 
-interface LoginResponse {
-  token: string;
-  teacher: Teacher;
+
+interface RecoverPasswordRequest {
+  teacher_email: string;
 }
 
+interface RecoverPasswordResponse {
+  status: string;
+  teacher_email: string;
+  sent_at: string;
+}
+
+
+interface LoginResponse {
+  data: Teacher;
+  message: string;
+}
+
+
 export const authApi = {
-  login: async (credentials: LoginRequest): Promise<LoginResponse> => {
+  login: async (credentials: LoginRequest): Promise<{ teacher: Teacher; message: string }> => {
     const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
-    authService.setToken(response.data.token);
+    // No token in BFF response, just teacher data and message
+    return { teacher: response.data.data, message: response.data.message };
+  },
+
+  recoverPassword: async (payload: RecoverPasswordRequest): Promise<RecoverPasswordResponse> => {
+    const response = await apiClient.post<RecoverPasswordResponse>('/auth/recover-password', payload);
     return response.data;
   },
 
