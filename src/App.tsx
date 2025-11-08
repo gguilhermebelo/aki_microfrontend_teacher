@@ -1,96 +1,38 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+// Temporariamente desabilitei o Toaster da lib Sonner para isolar erro de DOM (removeChild)
+// import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "./features/auth/pages/LoginPage";
-import RecoverPasswordPage from "./features/auth/pages/RecoverPasswordPage";
-import DashboardPage from "./features/dashboard/pages/DashboardPage";
-import ClassesPage from "./features/classes/pages/ClassesPage";
-import ClassDetailPage from "./features/classes/pages/ClassDetailPage";
-import EventsPage from "./features/events/pages/EventsPage";
-import AttendancesPage from "./features/attendances/pages/AttendancesPage";
-import ReportsPage from "./features/reports/pages/ReportsPage";
-import ProtectedRoute from "./features/auth/components/ProtectedRoute";
-import Layout from "./shared/components/Layout";
+import { BrowserRouter, useRoutes } from "react-router-dom";
+import { routes } from "./routes/routes";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+
+const Router = () => {
+  return useRoutes(routes);
+};
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/recover-password" element={<RecoverPasswordPage />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <DashboardPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/classes"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClassesPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/classes/:classId"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ClassDetailPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/events"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <EventsPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/attendances"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <AttendancesPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <ReportsPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+  <Toaster />
+  {/* Sonner Toaster desabilitado temporariamente. Se necessário reabilite import e componente acima */}
+        <BrowserRouter>
+          <Router />
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

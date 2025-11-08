@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/v1';
 const TOKEN_STORAGE_KEY = import.meta.env.VITE_AUTH_TOKEN_STORAGE_KEY || 'aki_token';
+const TEACHER_EMAIL_STORAGE_KEY = import.meta.env.VITE_AUTH_TEACHER_EMAIL_KEY || 'aki_teacher_email';
 
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
@@ -18,6 +19,11 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    const teacherEmail = localStorage.getItem(TEACHER_EMAIL_STORAGE_KEY);
+    if (teacherEmail) {
+      // BFF identifies teacher via header for MVP
+      (config.headers as any)['X-Teacher-Email'] = teacherEmail;
     }
     return config;
   },

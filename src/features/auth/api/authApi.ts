@@ -27,9 +27,37 @@ interface LoginResponse {
 
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<{ teacher: Teacher; message: string }> => {
-    const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
-    // No token in BFF response, just teacher data and message
-    return { teacher: response.data.data, message: response.data.message };
+    try {
+      const response = await apiClient.post<any>('/auth/login', credentials);
+
+      // BFF may wrap teacher under response.data.data or response.data — accept both
+      const payload = response?.data ?? response;
+      const teacher: Teacher = payload?.data ?? payload;
+      const message: string = payload?.message ?? 'Login successful';
+
+      if (!teacher || !teacher.email) {
+        throw new Error('Resposta inválida do servidor: teacher não encontrado');
+      }
+
+      // persistir email do teacher para cabeçalho X-Teacher-Email nas próximas requisições
+      try {
+        const { authService } = await import('@/services/auth/authService');
+        authService.setTeacherEmail(teacher.email);
+        // se o BFF eventualmente enviar token, salve também
+        if (payload?.token) {
+          authService.setToken(payload.token);
+        }
+      } catch (e) {
+        // ignore localStorage errors
+        // console.warn('Não foi possível salvar email do teacher localmente', e);
+      }
+
+      return { teacher, message };
+    } catch (err: any) {
+      // transform error for caller
+      const serverMessage = err?.response?.data?.message || err?.message || 'Erro desconhecido ao efetuar login';
+      throw new Error(serverMessage);
+    }
   },
 
   recoverPassword: async (payload: RecoverPasswordRequest): Promise<RecoverPasswordResponse> => {
