@@ -117,3 +117,9 @@ export async function updateEvent(
 export async function deleteEvent(eventId: number | string): Promise<void> {
   await apiClient.delete(`${BASE}/events/${eventId}`);
 }
+
+// Send a message to the institution related to a class (BFF endpoint /teachers/send-message)
+export async function sendMessage(payload: { teacher_id: number; class_id: number; message: string }): Promise<{ status?: string; message?: string }> {
+  const res = await apiClient.post<{ status?: string; message?: string }>(`${BASE}/teachers/send-message`, payload);
+  return res.data;
+}

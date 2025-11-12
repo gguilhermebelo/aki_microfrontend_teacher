@@ -147,6 +147,25 @@ const AttendancePage = () => {
           </select>
         </div>
         <Button variant="outline" disabled={!selectedEventId} onClick={() => selectedEventId && loadAttendance(selectedEventId)}>Recarregar</Button>
+        <Button
+          variant="secondary"
+          disabled={!eventQrToken}
+          onClick={() => {
+            if (!eventQrToken) return;
+            const runtime = (window as any).__ENV;
+            // Prefer runtime variable; fall back to build-time; final fallback localhost.
+            const studentBase = runtime?.VITE_STUDENT_APP_URL && runtime.VITE_STUDENT_APP_URL.trim() !== ''
+              ? runtime.VITE_STUDENT_APP_URL
+              : ((import.meta as any).env?.VITE_STUDENT_APP_URL || 'http://localhost:5173');
+            // Log para depuração em produção (pode remover depois)
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('[Attendance] Using student URL:', studentBase, 'runtime:', runtime);
+            }
+            window.open(`${studentBase.replace(/\/$/, '')}/qr?token=${encodeURIComponent(eventQrToken)}`, '_blank');
+          }}
+        >
+          Ver QR Code
+        </Button>
       </div>
 
       <Card className="shadow-sm">

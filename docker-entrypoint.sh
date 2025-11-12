@@ -8,6 +8,7 @@ OUTPUT_FILE="/usr/share/nginx/html/env.js"
 cat > "$OUTPUT_FILE" <<EOF
 window.__ENV = {
   VITE_API_BASE_URL: "${VITE_API_BASE_URL}" || "",
+  VITE_STUDENT_APP_URL: "${VITE_STUDENT_APP_URL}" || "",
 };
 EOF
 
