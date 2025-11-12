@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { classesApi } from '../api/classesApi';
+import { sendMessage } from '@/services/bff/teacherBff';
 import { authService } from '@/services/auth/authService';
 import { Class } from '@/shared/types';
 import { Users, Loader2, ChevronRight, Smartphone } from 'lucide-react';
@@ -35,6 +36,9 @@ const ClassesPage = () => {
   const [isExpLoading, setIsExpLoading] = useState(false);
   const [resetStudentId, setResetStudentId] = useState<string | null>(null);
   const [isResetting, setIsResetting] = useState(false);
+  const [messageClassId, setMessageClassId] = useState<string | null>(null);
+  const [messageValue, setMessageValue] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
 
   useEffect(() => {
     // garante que temos email do professor antes de carregar classes
@@ -79,6 +83,31 @@ const ClassesPage = () => {
     // open confirmation dialog
     setResetStudentId(studentId);
   };
+
+  const teacherIdRaw = authService.getTeacherId();
+
+  async function handleSendMessage(classId: string) {
+    if (!teacherIdRaw) {
+      toast.error('Teacher ID ausente. Faça login novamente.');
+      return;
+    }
+    if (messageValue.trim().length < 3) {
+      toast.error('Mensagem muito curta.');
+      return;
+    }
+    setSendingMsg(true);
+    try {
+      const payload = { teacher_id: Number(teacherIdRaw), class_id: Number(classId), message: messageValue.trim() };
+      const res = await sendMessage(payload);
+      toast.success(res.message || 'Mensagem enviada com sucesso');
+      setMessageValue('');
+      setMessageClassId(null);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message || e.message || 'Falha ao enviar mensagem');
+    } finally {
+      setSendingMsg(false);
+    }
+  }
 
   const handleResetDevice = async () => {
     if (!resetStudentId) return;
@@ -238,7 +267,42 @@ const ClassesPage = () => {
                           <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                         </Button>
                       </Link>
+                      <Button
+                        variant={messageClassId === classItem.id ? 'secondary' : 'outline'}
+                        size="sm"
+                        onClick={() => {
+                          if (messageClassId === classItem.id) {
+                            setMessageClassId(null);
+                            setMessageValue('');
+                          } else {
+                            setMessageClassId(classItem.id);
+                          }
+                        }}
+                      >
+                        {messageClassId === classItem.id ? 'Cancelar' : 'Enviar mensagem'}
+                      </Button>
                     </div>
+
+                    {messageClassId === classItem.id && (
+                      <div className="flex flex-col gap-2 border rounded-md p-3 bg-muted/5">
+                        <textarea
+                          className="w-full rounded-md border px-2 py-1 text-sm min-h-[90px]"
+                          placeholder="Escreva sua mensagem para a instituição"
+                          value={messageValue}
+                          onChange={(e) => setMessageValue(e.target.value)}
+                          disabled={sendingMsg}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleSendMessage(classItem.id)}
+                            disabled={sendingMsg}
+                          >
+                            {sendingMsg ? 'Enviando...' : 'Enviar'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {expandedClassId === classItem.id && (
                       <div className="mt-3 border rounded-md p-3 bg-muted/5">

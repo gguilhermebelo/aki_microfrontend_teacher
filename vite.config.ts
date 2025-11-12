@@ -7,7 +7,9 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    // Porta fixa para o microfrontend do professor.
+    port: 5174,
+    strictPort: true, // Falha se a porta estiver ocupada (evita mudar e quebrar integração entre apps)
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

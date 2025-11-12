@@ -2,7 +2,13 @@
 
 Aplicação em React + TypeScript para professores gerirem turmas, eventos de presença e dados de alunos.
 
-## 🎯 Visão Geral
+## 👩‍🎓 Alunos
+Camila Delarosa  
+Dimitri Delinski  
+Guilherme Belo  
+Yasmin Carmona
+
+## 🎯 Overview
 
 A interface do professor permite:
 - Autenticar com segurança (JWT via API Gateway)
@@ -49,7 +55,39 @@ src/
 └── styles/                # Estilos globais
 ```
 
-## 🚀 Início Rápido
+## 🧱 Arquitetura do Código-Fonte
+
+A aplicação segue um modelo híbrido entre Vertical Slice e Clean Architecture para manter baixo acoplamento e alta coesão:
+
+**Camadas principais:**
+- `features/` (Vertical Slice): Cada domínio (classes, events, attendance, auth) encapsula UI, lógica e integrações específicas.
+- `services/`: Abstrações de infraestrutura (HTTP/Axios, auth/localStorage, BFF orchestration). Nada de lógica de UI aqui.
+- `shared/`: Componentes, tipos, hooks e utilitários reutilizáveis – nunca importam código de uma slice específica.
+- `app/`: Bootstrapping (rotas, provedores globais, estilos) e configuração cruzada.
+
+**Fluxo de dados (request):** Componente → Hook/ação local → `services/bff/*` → Axios (`services/http/axios.ts`) → BFF → resposta normalizada → UI/toast.
+
+**Princípios aplicados:**
+- Separação de responsabilidades (SRP) – cada arquivo tem um papel claro.
+- Dependências apontam de fora para dentro (UI → serviço), nunca o contrário.
+- Zero lógica de negócio complexa dentro de componentes de apresentação.
+- Liskov/Interface Segregation via tipos compartilhados em `shared/types`.
+- Testabilidade: serviços e funções puras podem ser isoladas em futuros testes sem envolver React.
+
+**Env Runtime vs Build:**
+Variáveis como `VITE_STUDENT_APP_URL` são injetadas em runtime via `env.js` para permitir apontar para outro microfrontend sem rebuild. O Axios usa prioridade: `window.__ENV` → `import.meta.env` → fallback local.
+
+**Motivos das escolhas:**
+- Vertical Slice reduz refactors em larga escala quando um domínio muda.
+- Runtime env evita pipeline pesado para trocar URL do microfrontend do estudante.
+- Orquestração no BFF simplifica frontend (menos chamadas e junções).
+
+**Pontos de extensão futuros:**
+- Adicionar camada de cache para eventos/attendance.
+- Introduzir React Query caso haja complexidade de invalidação.
+- Testes unitários em serviços (ex.: `teacherBff.ts`).
+
+## 🚀 Getting Started
 
 ### Pré-requisitos
 
@@ -86,7 +124,7 @@ VITE_AUTH_TOKEN_STORAGE_KEY=aki_token
 npm run dev
 ```
 
-A aplicação estará disponível em `http://localhost:8080`
+The application will be available at `http://localhost:5174` (porta fixa definida em `vite.config.ts`). Use `strictPort: true` garante falha explícita se já estiver ocupada.
 
 ### Build Produção
 
@@ -107,12 +145,15 @@ docker build -t aki-teacher-frontend .
 ### Executar Container
 
 ```bash
-docker run -p 8080:80 \
+docker run -p 5174:80 \
   -e VITE_API_BASE_URL=https://your-api.com/v1 \
+  -e VITE_STUDENT_APP_URL=https://student.example.com \
   aki-teacher-frontend
 ```
 
-## 🎨 Design
+> Em runtime o script `docker-entrypoint.sh` gera `env.js` com `window.__ENV.VITE_STUDENT_APP_URL`, permitindo alterar a URL do microfrontend do estudante sem rebuild.
+
+## 🎨 Design System
 
 Paleta educativa:
 - Primária: Amarelo Dourado (#FFD700)

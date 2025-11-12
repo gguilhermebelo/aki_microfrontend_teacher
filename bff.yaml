@@ -520,3 +520,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Student'
+  /teachers/send-message:
+    post:
+      summary: Send message to institution
+      description: Allows a teacher to send a message to the institution.
+      tags: [Teachers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                teacher_id:
+                  type: integer
+                class_id:
+                  type: integer
+                message:
+                  type: string
+              required: [teacher_id, class_id, message]
+      responses:
+        '200':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
