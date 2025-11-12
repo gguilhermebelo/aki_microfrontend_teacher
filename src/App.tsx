@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, useRoutes } from "react-router-dom";
 import { routes } from "./routes/routes";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { useEffect } from 'react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,6 +20,11 @@ const queryClient = new QueryClient({
 });
 
 const Router = () => {
+  // Restaura sessão ao inicializar a aplicação
+  const { loadUser } = useAuth();
+  useEffect(() => {
+    loadUser();
+  }, [loadUser]);
   return useRoutes(routes);
 };
 

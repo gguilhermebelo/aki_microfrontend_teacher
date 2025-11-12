@@ -6,7 +6,7 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import ClassesPage from '@/features/classes/pages/ClassesPage';
 import ClassDetailPage from '@/features/classes/pages/ClassDetailPage';
 import EventsPage from '@/features/events/pages/EventsPage';
-import AttendancesPage from '@/features/attendances/pages/AttendancesPage';
+import AttendancePage from '@/features/attendance/pages/AttendancePage';
 import ReportsPage from '@/features/reports/pages/ReportsPage';
 import Layout from '@/shared/components/Layout';
 import ProtectedRoute from '@/features/auth/components/ProtectedRoute';
@@ -45,8 +45,8 @@ export const routes: RouteObject[] = [
     element: withLayout(EventsPage)
   },
   {
-    path: '/attendances',
-    element: withLayout(AttendancesPage)
+    path: '/attendance',
+    element: withLayout(AttendancePage)
   },
   {
     path: '/reports',

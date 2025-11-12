@@ -30,7 +30,7 @@ const Layout = ({ children }: LayoutProps) => {
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/classes', label: 'Classes', icon: Users },
     { path: '/events', label: 'Events', icon: Calendar },
-    { path: '/attendances', label: 'Attendances', icon: ClipboardCheck },
+    { path: '/attendance', label: 'Attendance', icon: ClipboardCheck },
     { path: '/reports', label: 'Reports', icon: BarChart3 },
   ];
 

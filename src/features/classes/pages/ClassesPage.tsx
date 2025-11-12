@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { classesApi } from '../api/classesApi';
+import { authService } from '@/services/auth/authService';
 import { Class } from '@/shared/types';
 import { Users, Loader2, ChevronRight, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
@@ -36,7 +37,11 @@ const ClassesPage = () => {
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
-    loadClasses();
+    // garante que temos email do professor antes de carregar classes
+    const email = authService.getTeacherEmail();
+    if (email) {
+      loadClasses();
+    }
   }, []);
 
   const loadClasses = async () => {
@@ -109,9 +114,9 @@ const ClassesPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">My Classes</h1>
+          <h1 className="text-3xl font-bold">Minhas Turmas</h1>
           <p className="text-muted-foreground mt-1">
-            Manage your classes and students
+            Turmas carregadas do BFF para o professor atual
           </p>
         </div>
       </div>
@@ -120,9 +125,9 @@ const ClassesPage = () => {
         <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium mb-2">No classes found</p>
+            <p className="text-lg font-medium mb-2">Nenhuma turma encontrada</p>
             <p className="text-sm text-muted-foreground">
-              You don't have any classes assigned yet
+              Verifique se o email do professor está configurado ou se há turmas.
             </p>
           </CardContent>
         </Card>
@@ -136,11 +141,11 @@ const ClassesPage = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-xl">Turma U BES</CardTitle>
-                      <CardDescription className="mt-1">Code: {specialClass.code}</CardDescription>
+                      <CardDescription className="mt-1">Código: {specialClass.code}</CardDescription>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Users className="h-5 w-5" />
-                      <span className="font-medium">{specialClass.students?.length || 0} students</span>
+                      <span className="font-medium">{specialClass.students?.length || 0} alunos</span>
                     </div>
                   </div>
                 </CardHeader>
@@ -151,7 +156,7 @@ const ClassesPage = () => {
                     </Button>
                     <Link to={`/classes/${specialClass.id}`} className="flex-1">
                       <Button className="w-full gradient-primary group">
-                        View Details
+                        Ver Detalhes
                         <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
@@ -170,11 +175,11 @@ const ClassesPage = () => {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Name</TableHead>
+                                <TableHead>Nome</TableHead>
                                 <TableHead>Email</TableHead>
-                                <TableHead>Document</TableHead>
-                                <TableHead>Device MAC</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>Documento</TableHead>
+                                <TableHead>Dispositivo</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -188,7 +193,7 @@ const ClassesPage = () => {
                                     {s.device ? (
                                       <Button variant="destructive" size="sm" onClick={() => setResetStudentId(s.id)}>Remover dispositivo</Button>
                                     ) : (
-                                      <span className="text-sm text-muted-foreground">No device</span>
+                                      <span className="text-sm text-muted-foreground">Sem dispositivo</span>
                                     )}
                                   </TableCell>
                                 </TableRow>
@@ -211,7 +216,7 @@ const ClassesPage = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-xl">{classItem.name}</CardTitle>
-                      <CardDescription className="mt-1">Code: {classItem.code}</CardDescription>
+                      <CardDescription className="mt-1">Código: {classItem.code}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -219,7 +224,7 @@ const ClassesPage = () => {
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Users className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{classItem.students?.length || 0} students</span>
+            <span className="font-medium">{classItem.students?.length || 0} alunos</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -229,7 +234,7 @@ const ClassesPage = () => {
 
                       <Link to={`/classes/${classItem.id}`} className="flex-1">
                         <Button className="w-full gradient-primary group">
-                          View Details
+                          Ver Detalhes
                           <ChevronRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                         </Button>
                       </Link>
@@ -248,11 +253,11 @@ const ClassesPage = () => {
                             <Table>
                               <TableHeader>
                                 <TableRow>
-                                  <TableHead>Name</TableHead>
-                                  <TableHead>Email</TableHead>
-                                  <TableHead>Document</TableHead>
-                                  <TableHead>Device MAC</TableHead>
-                                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Documento</TableHead>
+                  <TableHead>Dispositivo</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
@@ -266,7 +271,7 @@ const ClassesPage = () => {
                                       {s.device ? (
                                         <Button variant="destructive" size="sm" onClick={() => setResetStudentId(s.id)}>Remover dispositivo</Button>
                                       ) : (
-                                        <span className="text-sm text-muted-foreground">No device</span>
+                                        <span className="text-sm text-muted-foreground">Sem dispositivo</span>
                                       )}
                                     </TableCell>
                                   </TableRow>

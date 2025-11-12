@@ -1,39 +1,26 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Plus, Loader2 } from 'lucide-react';
-import { mockEventsApi } from '@/mocks/apiMocks';
+import { Calendar, Plus, Loader2, Trash2, Pencil, ListChecks } from 'lucide-react';
+import { eventsApi } from '../api/eventsApi';
+import { classesApi } from '@/features/classes/api/classesApi';
+import { useGeolocation } from '@/hooks/use-geolocation';
 
 const USE_MOCK = (import.meta as any).env?.VITE_USE_MOCK_API === 'true';
 
-const initialEvents = [
-  {
-    id: '1',
-    title: 'Introduction to Algorithms',
-    className: 'CS101',
-    startTime: '2025-10-26T09:00:00',
-    endTime: '2025-10-26T10:30:00',
-    location: 'Room 301',
-    status: 'active' as const,
-  },
-  {
-    id: '2',
-    title: 'Data Structures Lab',
-    className: 'CS102',
-    startTime: '2025-10-26T14:00:00',
-    endTime: '2025-10-26T16:00:00',
-    location: 'Lab 2',
-    status: 'active' as const,
-  },
-];
+// eventos são carregados dinamicamente via BFF
+const initialEvents: any[] = [];
 
 const EventsPage = () => {
-  const [isLoading] = useState(false);
-  const [events, setEvents] = useState(initialEvents);
+  const { latitude, longitude, error: geoError, loading: geoLoading, refresh: refreshGeo } = useGeolocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [events, setEvents] = useState<any[]>(initialEvents);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
 
   // create event state
   const [createMode, setCreateMode] = useState(false);
-  const emptyCreate = { title: '', className: '', startTime: '', endTime: '', location: '' };
+  const emptyCreate = { classId: '', startAt: '', endAt: '' };
   const [createForm, setCreateForm] = useState(emptyCreate);
   const [creating, setCreating] = useState(false);
 
@@ -41,11 +28,45 @@ const EventsPage = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: '',
-    className: '',
-    startTime: '',
-    endTime: '',
+    classId: '',
+    startAt: '',
+    endAt: '',
     location: '',
   });
+
+  // edit dialog state (using inline form already)
+  const allowedStatuses = ['scheduled', 'active', 'finished', 'closed', 'canceled'] as const;
+
+  useEffect(() => {
+    // carrega turmas para selecionar classe
+    (async () => {
+      setIsLoading(true);
+      try {
+        const list = await classesApi.getMyClasses();
+        setClasses(list);
+        if (list.length) {
+          setSelectedClassId(String(list[0].id));
+          await loadEvents(String(list[0].id));
+        }
+      } catch (e) {
+        console.error('Falha ao carregar turmas', e);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const loadEvents = async (classId: string) => {
+    setIsLoading(true);
+    try {
+      const data = await eventsApi.listByClass(classId);
+      setEvents(data);
+    } catch (e) {
+      console.error('Falha ao carregar eventos', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -60,14 +81,24 @@ const EventsPage = () => {
     }
   };
 
+  const toLocalInput = (iso: string) => {
+    // Converte ISO para formato aceito por <input type="datetime-local">
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    // yyyy-MM-ddTHH:mm
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   const startEdit = (ev: any) => {
     setEditingId(ev.id);
     setForm({
-      title: ev.title || '',
-      className: ev.className || '',
-      startTime: ev.startTime || '',
-      endTime: ev.endTime || '',
-      location: ev.location || '',
+      title: '',
+      classId: ev.classId || selectedClassId,
+      startAt: toLocalInput(ev.startTime),
+      endAt: toLocalInput(ev.endTime),
+      location: ev.status || '',
     });
   };
 
@@ -75,26 +106,32 @@ const EventsPage = () => {
     setEditingId(null);
   };
 
-  const saveEdit = (id: string) => {
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...form } : e))
-    );
-    setEditingId(null);
+  const saveEdit = async (id: string) => {
+    try {
+      const updated = await eventsApi.update(id, {
+        startAt: form.startAt,
+        endAt: form.endAt,
+        status: form.location as any, // repurpose location field for status before removal; will adjust below
+      });
+      setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+      setEditingId(null);
+    } catch (e: any) {
+      window.alert(e.message || 'Falha ao atualizar evento');
+    }
   };
 
   const deleteEvent = async (id: string) => {
     const ok = window.confirm('Excluir este evento? Esta ação não pode ser desfeita.');
     if (!ok) return;
-    // optimistic update
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-    if (USE_MOCK) {
-      try {
-        await mockEventsApi.remove(id);
-      } catch (err) {
-        console.error('Failed to remove event (mock):', err);
-      }
+    try {
+      await eventsApi.remove(id);
+      setEvents((prev) => prev.filter((e) => e.id !== id));
+    } catch (e: any) {
+      window.alert(e.message || 'Falha ao excluir evento');
     }
   };
+
+  // Remove QR code related functions & state
 
   if (isLoading) {
     return (
@@ -105,6 +142,7 @@ const EventsPage = () => {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -113,10 +151,37 @@ const EventsPage = () => {
             Manage attendance events and generate QR codes
           </p>
         </div>
-        <Button className="gradient-primary" onClick={() => setCreateMode(true)}>
+        <Button className="gradient-primary" onClick={() => setCreateMode(true)} disabled={!selectedClassId}>
           <Plus className="mr-2 h-4 w-4" />
           Create Event
         </Button>
+      </div>
+
+      <div className="flex gap-2 items-center mb-2">
+        <label className="text-sm font-medium">Classe:</label>
+        <select
+          className="border rounded px-2 py-1 text-sm"
+          value={selectedClassId}
+          onChange={async (e) => {
+            const cid = e.target.value;
+            setSelectedClassId(cid);
+            await loadEvents(cid);
+          }}
+        >
+          {classes.map((c) => (
+            <option key={c.id} value={c.id}>{c.name || c.code}</option>
+          ))}
+        </select>
+        <Button variant="outline" size="sm" onClick={() => selectedClassId && loadEvents(selectedClassId)} disabled={!selectedClassId || isLoading}>Recarregar</Button>
+        <div className="text-xs text-muted-foreground flex items-center gap-2">
+          {geoLoading && <span>Localizando...</span>}
+          {!geoLoading && latitude != null && longitude != null && (
+            <span>Lat: {latitude.toFixed(4)} Lng: {longitude.toFixed(4)}</span>
+          )}
+          {!geoLoading && geoError && (
+            <button className="underline" onClick={refreshGeo}>Permitir localização</button>
+          )}
+        </div>
       </div>
 
       {/* create form (inline) */}
@@ -125,28 +190,27 @@ const EventsPage = () => {
           <CardContent>
             <div className="max-w-3xl mx-auto">
               <div className="grid gap-4 md:grid-cols-2 items-center justify-center text-center">
-                <input
-                  className="w-full border rounded px-2 py-1"
-                  placeholder="Title"
-                  value={createForm.title}
-                  onChange={(e) => setCreateForm((s) => ({ ...s, title: e.target.value }))}
-                />
+                {/* Campo de título removido */}
 
-                <input
+                <select
                   className="w-full border rounded px-2 py-1"
-                  placeholder="Class name / classId"
-                  value={createForm.className}
-                  onChange={(e) => setCreateForm((s) => ({ ...s, className: e.target.value }))}
-                />
+                  value={createForm.classId || selectedClassId}
+                  onChange={(e) => setCreateForm((s) => ({ ...s, classId: e.target.value }))}
+                >
+                  <option value="">Selecione a turma</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name || c.code}</option>
+                  ))}
+                </select>
 
                 <div className="flex flex-col items-center">
                   <label className="text-sm font-medium mb-1">Início</label>
                   <input
                     type="datetime-local"
                     className="w-full border rounded px-2 py-1"
-                    placeholder="Start"
-                    value={createForm.startTime}
-                    onChange={(e) => setCreateForm((s) => ({ ...s, startTime: e.target.value }))}
+                    placeholder="Início"
+                    value={createForm.startAt}
+                    onChange={(e) => setCreateForm((s) => ({ ...s, startAt: e.target.value }))}
                   />
                 </div>
 
@@ -155,18 +219,13 @@ const EventsPage = () => {
                   <input
                     type="datetime-local"
                     className="w-full border rounded px-2 py-1"
-                    placeholder="End"
-                    value={createForm.endTime}
-                    onChange={(e) => setCreateForm((s) => ({ ...s, endTime: e.target.value }))}
+                    placeholder="Fim"
+                    value={createForm.endAt}
+                    onChange={(e) => setCreateForm((s) => ({ ...s, endAt: e.target.value }))}
                   />
                 </div>
 
-                <input
-                  className="w-full border rounded px-2 py-1 md:col-span-2 mx-auto"
-                  placeholder="Location"
-                  value={createForm.location}
-                  onChange={(e) => setCreateForm((s) => ({ ...s, location: e.target.value }))}
-                />
+                {/* Campo de location removido (usamos geolocalização ou 0,0) */}
               </div>
 
               <div className="flex gap-2 mt-4 justify-center">
@@ -176,39 +235,26 @@ const EventsPage = () => {
                 <Button
                   className="gradient-primary"
                   onClick={async () => {
-                    if (!createForm.title.trim()) {
-                      window.alert('O campo título é obrigatório');
+                    if (!createForm.classId) {
+                      window.alert('Selecione a turma');
                       return;
                     }
                     setCreating(true);
                     try {
-                      const payload: any = {
-                        title: createForm.title,
-                        description: undefined,
-                        startsAt: createForm.startTime,
-                        endsAt: createForm.endTime,
-                        classId: createForm.className || undefined,
-                      };
-                      let res: any;
-                      if (USE_MOCK) {
-                        res = await mockEventsApi.create(payload);
-                      } else {
-                        res = { id: `ev-${Date.now()}`, ...payload, createdAt: new Date().toISOString() };
+                      try {
+                        const created = await eventsApi.create({
+                          classId: createForm.classId,
+                          startAt: createForm.startAt,
+                          endAt: createForm.endAt,
+                          latitude: latitude ?? 0,
+                          longitude: longitude ?? 0,
+                        });
+                        setEvents((prev) => [created, ...prev]);
+                        setCreateMode(false);
+                        setCreateForm(emptyCreate);
+                      } catch (e: any) {
+                        window.alert(e.message || 'Falha na validação das datas');
                       }
-
-                      const newEvent = {
-                        id: res.id,
-                        title: res.title || createForm.title,
-                        className: createForm.className,
-                        startTime: res.startsAt || createForm.startTime,
-                        endTime: res.endsAt || createForm.endTime,
-                        location: createForm.location,
-                        status: 'active' as const,
-                      };
-
-                      setEvents((prev) => [newEvent, ...prev]);
-                      setCreateMode(false);
-                      setCreateForm(emptyCreate);
                     } catch (err) {
                       console.error('Failed to create event:', err);
                       window.alert('Falha ao criar evento');
@@ -247,9 +293,9 @@ const EventsPage = () => {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-xl">{event.title}</CardTitle>
+                    <CardTitle className="text-xl">Evento de Aula</CardTitle>
                     <CardDescription className="mt-1">
-                      {event.className} • {event.location}
+                      {selectedClassId} • {event.location || '—'}
                     </CardDescription>
                   </div>
                   <span
@@ -265,36 +311,35 @@ const EventsPage = () => {
                 {editingId === event.id ? (
                   // inline edit form
                   <div className="space-y-3">
-                    <input
-                      className="w-full border rounded px-2 py-1"
-                      value={form.title}
-                      onChange={(e) => setForm((s) => ({ ...s, title: e.target.value }))}
-                      placeholder="Title"
-                    />
-                    <input
-                      className="w-full border rounded px-2 py-1"
-                      value={form.className}
-                      onChange={(e) => setForm((s) => ({ ...s, className: e.target.value }))}
-                      placeholder="Class"
-                    />
-                    <input
+                    {/* Campo de edição de título removido */}
+                    <select
                       className="w-full border rounded px-2 py-1"
                       value={form.location}
                       onChange={(e) => setForm((s) => ({ ...s, location: e.target.value }))}
-                      placeholder="Location"
+                    >
+                      <option value="">Status</option>
+                      {allowedStatuses.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                    <input
+                      className="w-full border rounded px-2 py-1"
+                      value={form.startAt}
+                      onChange={(e) => setForm((s) => ({ ...s, startAt: e.target.value }))}
+                      placeholder="Início"
                     />
                     <div className="flex gap-2">
                       <input
                         type="datetime-local"
                         className="flex-1 border rounded px-2 py-1"
-                        value={form.startTime}
-                        onChange={(e) => setForm((s) => ({ ...s, startTime: e.target.value }))}
+                        value={form.startAt}
+                        onChange={(e) => setForm((s) => ({ ...s, startAt: e.target.value }))}
                       />
                       <input
                         type="datetime-local"
                         className="flex-1 border rounded px-2 py-1"
-                        value={form.endTime}
-                        onChange={(e) => setForm((s) => ({ ...s, endTime: e.target.value }))}
+                        value={form.endAt}
+                        onChange={(e) => setForm((s) => ({ ...s, endAt: e.target.value }))}
                       />
                     </div>
                     <div className="flex gap-2">
@@ -309,26 +354,26 @@ const EventsPage = () => {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Start:</span>
                         <span className="font-medium">
-                          {new Date(event.startTime).toLocaleString()}
+                          {event.startTime ? new Date(event.startTime).toLocaleString() : '—'}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">End:</span>
                         <span className="font-medium">
-                          {new Date(event.endTime).toLocaleString()}
+                          {event.endTime ? new Date(event.endTime).toLocaleString() : '—'}
                         </span>
                       </div>
                     </div>
 
                     <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1">
-                        View QR Code
+                      <Button variant="outline" onClick={() => deleteEvent(String(event.id))}>
+                        <Trash2 className="h-4 w-4 mr-1" /> Delete
                       </Button>
-                      <Button variant="outline" onClick={() => deleteEvent(event.id)}>
-                        Delete
+                      <Button variant="outline" onClick={() => startEdit(event)} className="flex-1">
+                        <Pencil className="h-4 w-4 mr-1" /> Edit
                       </Button>
-                      <Button className="flex-1 gradient-primary" onClick={() => startEdit(event)}>
-                        Manage
+                      <Button variant="outline" onClick={() => window.location.href = `/attendance?event=${event.id}&class=${selectedClassId}`}> 
+                        <ListChecks className="h-4 w-4 mr-1" /> Attendance
                       </Button>
                     </div>
                   </>
@@ -338,7 +383,9 @@ const EventsPage = () => {
           ))}
         </div>
       )}
-    </div>
+  </div>
+  {/* QR Code modal removido */}
+    </>
   );
 };
 
