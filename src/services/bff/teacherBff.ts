@@ -26,7 +26,8 @@ export interface EventItem {
   classId: number;
   startAt?: string;
   endAt?: string;
-  status?: 'scheduled' | 'active' | 'finished';
+  status?: 'scheduled' | 'active' | 'finished' | 'closed' | 'canceled';
+  qrToken?: string;
 }
 
 export interface AttendanceRecord {
@@ -85,4 +86,34 @@ export async function registerQrForEvent(
   meta?: Record<string, unknown>
 ): Promise<void> {
   await apiClient.post(`${BASE}/events/${eventId}/tokens`, { token, meta });
+}
+
+// Create a new event (returns generated qrToken)
+export async function createEvent(payload: {
+  classId: number;
+  teacherId: number; // required by BFF spec
+  startAt: string; // ISO
+  endAt: string; // ISO
+  location?: { latitude: number; longitude: number };
+}): Promise<EventItem> {
+  const res = await apiClient.post<EventItem>(`${BASE}/events`, payload);
+  return res.data;
+}
+
+// Update an existing event (startAt, endAt, status)
+export async function updateEvent(
+  eventId: number | string,
+  payload: {
+    startAt?: string; // ISO (optional)
+    endAt?: string; // ISO (optional)
+    status?: 'scheduled' | 'active' | 'finished' | 'closed' | 'canceled';
+  }
+): Promise<EventItem> {
+  const res = await apiClient.put<EventItem>(`${BASE}/events/${eventId}`, payload);
+  return res.data;
+}
+
+// Delete an event
+export async function deleteEvent(eventId: number | string): Promise<void> {
+  await apiClient.delete(`${BASE}/events/${eventId}`);
 }

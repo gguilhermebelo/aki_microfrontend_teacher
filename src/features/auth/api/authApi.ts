@@ -29,32 +29,31 @@ export const authApi = {
   login: async (credentials: LoginRequest): Promise<{ teacher: Teacher; message: string }> => {
     try {
       const response = await apiClient.post<any>('/auth/login', credentials);
-
-      // BFF may wrap teacher under response.data.data or response.data — accept both
       const payload = response?.data ?? response;
-      const teacher: Teacher = payload?.data ?? payload;
-      const message: string = payload?.message ?? 'Login successful';
+      const raw = payload?.data ?? payload;
 
-      if (!teacher || !teacher.email) {
+      if (!raw || !raw.email) {
         throw new Error('Resposta inválida do servidor: teacher não encontrado');
       }
 
-      // persistir email do teacher para cabeçalho X-Teacher-Email nas próximas requisições
-      try {
-        const { authService } = await import('@/services/auth/authService');
-        authService.setTeacherEmail(teacher.email);
-        // se o BFF eventualmente enviar token, salve também
-        if (payload?.token) {
-          authService.setToken(payload.token);
-        }
-      } catch (e) {
-        // ignore localStorage errors
-        // console.warn('Não foi possível salvar email do teacher localmente', e);
-      }
+      // Normaliza campos (full_name -> name)
+      const teacher: Teacher = {
+        id: String(raw.id),
+        name: raw.full_name || raw.fullName || raw.name || '',
+        email: raw.email,
+        document: raw.document || '',
+        createdAt: raw.created_at || '',
+        updatedAt: raw.updated_at || '',
+      };
+      const message: string = payload?.message ?? 'Login successful';
+
+      // Persistir email e id para uso em headers e criação de eventos
+      authService.setTeacherEmail(teacher.email);
+      if (raw.id !== undefined) authService.setTeacherId(raw.id);
+      if (payload?.token) authService.setToken(payload.token);
 
       return { teacher, message };
     } catch (err: any) {
-      // transform error for caller
       const serverMessage = err?.response?.data?.message || err?.message || 'Erro desconhecido ao efetuar login';
       throw new Error(serverMessage);
     }
@@ -70,7 +69,19 @@ export const authApi = {
   },
 
   getMe: async (): Promise<Teacher> => {
-    const response = await apiClient.get<{ data: Teacher }>('/teachers/me');
-    return response.data.data;
+    const response = await apiClient.get<{ data: any }>('/teachers/me');
+    const raw = response.data.data;
+    const teacher: Teacher = {
+      id: String(raw.id),
+      name: raw.full_name || raw.fullName || raw.name || '',
+      email: raw.email,
+      document: raw.document || '',
+      createdAt: raw.created_at || '',
+      updatedAt: raw.updated_at || '',
+    };
+    // garantir persistência em restauração
+    authService.setTeacherEmail(teacher.email);
+    if (raw.id !== undefined) authService.setTeacherId(raw.id);
+    return teacher;
   },
 };

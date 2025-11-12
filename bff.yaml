@@ -1,0 +1,522 @@
+openapi: 3.0.3
+info:
+  title: AKI! BFF API (Backend-for-Frontend)
+  version: 1.0.0
+  description: |
+    Backend-for-Frontend (BFF) for the AKI! platform. This BFF aggregates data from the
+    **Personas** microservice (teachers, students, classes) and the **Core** microservice (events, attendance)
+    to deliver complete, render-ready responses for the frontend.
+
+    Authentication: none for MVP. Teacher identification is done through the `X-Teacher-Email` header.
+
+servers:
+  - url: https://aki-bff-h9cjg7hpfzc9fggh.eastus2-01.azurewebsites.net
+    description: Deployed BFF server
+  - url: http://localhost:3007
+    description: Local BFF server
+
+components:
+  parameters:
+    TeacherEmailHeader:
+      name: X-Teacher-Email
+      in: header
+      required: true
+      description: Teacher's email (temporary identification for MVP)
+      schema:
+        type: string
+        format: email
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+      required: [code, message]
+
+    Teacher:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string, format: email }
+
+    Student:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        cpf: { type: string }
+        deviceId:
+          type: string
+          nullable: true
+
+    Class:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        teachers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Teacher'
+        students:
+          type: array
+          items:
+            $ref: '#/components/schemas/Student'
+
+    Event:
+      type: object
+      properties:
+        id: { type: integer }
+        classId: { type: integer }
+  # title removed
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [scheduled, active, finished]
+        teacherId: { type: integer }
+        location:
+          type: object
+          properties:
+            latitude: { type: number }
+            longitude: { type: number }
+        qrToken: { type: string }
+
+    EventCreate:
+      type: object
+      properties:
+        classId: { type: integer }
+        teacherId: { type: integer }
+        startAt: { type: string, format: date-time }
+        endAt: { type: string, format: date-time }
+        location:
+          type: object
+          required: [latitude, longitude]
+          properties:
+            latitude: { type: number }
+            longitude: { type: number }
+      required: [classId, teacherId, startAt, endAt, location]
+
+    AttendanceRecord:
+      type: object
+      properties:
+        studentId: { type: integer }
+        studentName: { type: string }
+        status:
+          type: string
+          enum: [present, absent, manual]
+        recordedAt: { type: string, format: date-time }
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns service status and server time.
+      tags: [Meta]
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  time: { type: string, format: date-time }
+  /version:
+    get:
+      summary: Running version and key routes
+      description: Helps confirm deployed build contains new event PUT/DELETE routes.
+      tags: [Meta]
+      responses:
+        '200':
+          description: Version info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version: { type: string }
+                  routes:
+                    type: array
+                    items: { type: string }
+  /auth/login:
+    post:
+      summary: Teacher login
+      description: Authenticate teacher by email and password.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required: [email, password]
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Teacher'
+                  message:
+                    type: string
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/recover-password:
+    post:
+      summary: Teacher password recovery
+      description: Send password recovery email to teacher.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                teacher_email:
+                  type: string
+                  format: email
+              required: [teacher_email]
+      responses:
+        '200':
+          description: Recovery email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  teacher_email:
+                    type: string
+                  sent_at:
+                    type: string
+                    format: date-time
+        '404':
+          description: Teacher not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /teachers/{teacherEmail}/classes:
+    get:
+      summary: List classes taught by a teacher
+      description: |
+        Returns all classes associated with a teacher, including full rosters (students + teachers).
+        **Orchestration:**
+        - Personas → `/teachers/{email}/classes`
+        - Personas → `/classes/{id}/students` & `/classes/{id}/teachers`
+      tags: [Classes]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: teacherEmail
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: List of classes with rosters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Class'
+
+  /classes/{classId}:
+    get:
+      summary: Get class details and recent events
+      description: |
+        Returns detailed class information with full roster and last 5 events.
+        **Orchestration:**
+        - Personas → `/classes/{classId}`
+        - Core → `/classes/{classId}/events?limit=5`
+      tags: [Classes]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Class details with recent events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  class:
+                    $ref: '#/components/schemas/Class'
+                  recentEvents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Event'
+
+  /classes/{classId}/events:
+    get:
+      summary: List all events for a class
+      description: |
+        Returns all events associated with the given class.
+        **Orchestration:** Core → `/classes/{classId}/events`
+      tags: [Events]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: classId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Event'
+
+  /events/{eventId}:
+    get:
+      summary: Get event details with attendance list
+      description: |
+        Returns a single event with complete attendance data.
+        **Orchestration:**
+        - Core → `/events/{eventId}`
+        - Core → `/events/{eventId}/attendance`
+        - Personas → `/classes/{classId}/students` (for name enrichment)
+      tags: [Events, Attendance]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event details with attendance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  event:
+                    $ref: '#/components/schemas/Event'
+                  attendance:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AttendanceRecord'
+    put:
+      summary: Update an event (start/end/status)
+      description: |
+        Updates allowed fields of an event (startAt, endAt, status).
+        **Orchestration:** Core → `PUT /events/{eventId}`
+      tags: [Events]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startAt:
+                  type: string
+                  format: date-time
+                endAt:
+                  type: string
+                  format: date-time
+                status:
+                  type: string
+                  enum: [scheduled, active, finished, closed, canceled]
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Event not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete an event
+      description: |
+        Deletes an event if allowed (no constraints).
+        **Orchestration:** Core → `DELETE /events/{eventId}`
+      tags: [Events]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: eventId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Event deleted
+        '409':
+          description: Conflict (cannot delete closed event or event with constraints)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /events/attendance:
+    post:
+      summary: Register attendance via QR scan or manual entry
+      description: |
+        Registers a student's attendance using device and QR token, or manually with CPF if device not registered.
+        **Orchestration:**
+        - Personas → `/students/device?device_id=...`
+        - Core → `/events/by-token/{qr_token}` (to get class_id)
+        - Personas → `/classes/{classId}/students` (to check membership)
+        - Core → `POST /attendances`
+      tags: [Attendance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_id:
+                  type: string
+                  description: Device ID from frontend
+                qr_token:
+                  type: string
+                  description: QR token scanned by student
+                location:
+                  type: object
+                  properties:
+                    latitude: { type: number }
+                    longitude: { type: number }
+                device_time:
+                  type: string
+                  format: date-time
+                  description: Device time when attendance was registered
+                student_cpf:
+                  type: string
+                  description: Optional CPF if device not registered
+              required: [device_id, qr_token]
+      responses:
+        '200':
+          description: Attendance registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AttendanceRecord'
+        '400':
+          description: Error response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /events:
+    post:
+      summary: Create a new event (generates QR token)
+      description: |
+        Creates an event for a class and returns the generated QR token used for attendance scanning.
+        **Orchestration:** Core → `POST /events`
+      tags: [Events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventCreate'
+      responses:
+        '201':
+          description: Event created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Event'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (overlapping event)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /students/{studentId}/device:
+    delete:
+      summary: Remove device association from a student
+      description: |
+        Removes the `deviceId` from a student.
+        **Orchestration:** Personas → `PATCH /students/{id}` with `deviceId = null`
+      tags: [Devices]
+      parameters:
+        - $ref: '#/components/parameters/TeacherEmailHeader'
+        - name: studentId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
