@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 const TOKEN_STORAGE_KEY = import.meta.env.VITE_AUTH_TOKEN_STORAGE_KEY || 'aki_token';
 const TEACHER_EMAIL_STORAGE_KEY = import.meta.env.VITE_AUTH_TEACHER_EMAIL_KEY || 'aki_teacher_email';
 
