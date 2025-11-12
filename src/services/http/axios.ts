@@ -1,6 +1,8 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// Prefer runtime-injected env (window.__ENV) then build-time Vite replacement, then fallback
+const runtimeEnv = (typeof window !== 'undefined' && (window as any).__ENV) ? (window as any).__ENV : {};
+const API_BASE_URL = runtimeEnv.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3007';
 const TOKEN_STORAGE_KEY = import.meta.env.VITE_AUTH_TOKEN_STORAGE_KEY || 'aki_token';
 const TEACHER_EMAIL_STORAGE_KEY = import.meta.env.VITE_AUTH_TEACHER_EMAIL_KEY || 'aki_teacher_email';
 
