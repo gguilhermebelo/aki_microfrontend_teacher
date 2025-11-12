@@ -21,6 +21,8 @@
 
   <body>
     <div id="root"></div>
+    <!-- Runtime environment variables (injected by docker-entrypoint.sh) -->
+    <script src="/env.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
